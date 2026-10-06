@@ -21,33 +21,55 @@ export default function SearchScreen() {
   const imagemProvisoria =
     "https://images.unsplash.com/photo-1545241047-6083a3684587";
 
-const buscarPlantas = async (nome = "") => {
-  try {
-    setCarregando(true);
-    setErro("");
+  // Busca as plantas na API
+  const buscarPlantas = async () => {
+    try {
+      setCarregando(true);
+      setErro("");
 
-    console.log("Pesquisando:", nome);
+      const response = await api.get("/plants");
 
-    const response = await api.get("/plants", {
-      params: nome.trim() !== "" ? { nome: nome.trim() } : {},
-    });
+      console.log("Plantas recebidas:", response.data);
 
-    console.log("Resposta da API:", response.data);
+      const todasAsPlantas = Array.isArray(response.data)
+        ? response.data
+        : [];
 
-    setPlantas(response.data);
-  } catch (error) {
-    console.log("Erro ao buscar plantas:", error);
+      // Texto digitado pelo usuário
+      const texto = pesquisa.trim().toLowerCase();
 
-    setErro("Não foi possível carregar as plantas.");
-    setPlantas([]);
-  } finally {
-    setCarregando(false);
-  }
-};
+      // Se não digitou nada, mostra todas
+      if (texto === "") {
+        setPlantas(todasAsPlantas);
+        return;
+      }
 
+      // Filtra pelo nome da planta
+      const plantasFiltradas = todasAsPlantas.filter((planta) => {
+        const nome = String(planta.nome || "").toLowerCase();
+
+        return nome.includes(texto);
+      });
+
+      console.log("Resultado da pesquisa:", plantasFiltradas);
+
+      setPlantas(plantasFiltradas);
+
+    } catch (error) {
+      console.log("Erro ao buscar plantas:", error);
+
+      setErro("Não foi possível carregar as plantas.");
+      setPlantas([]);
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  // Executa a pesquisa automaticamente
+  // quando o usuário para de digitar por 400ms
   useEffect(() => {
     const tempo = setTimeout(() => {
-      buscarPlantas(pesquisa);
+      buscarPlantas();
     }, 400);
 
     return () => clearTimeout(tempo);
@@ -68,7 +90,10 @@ const buscarPlantas = async (nome = "") => {
         </Text>
 
         <Text style={styles.price}>
-          R$ {Number(item.preco).toFixed(2).replace(".", ",")}
+          R${" "}
+          {Number(item.preco)
+            .toFixed(2)
+            .replace(".", ",")}
         </Text>
 
         <Text style={styles.quantity}>
@@ -80,17 +105,22 @@ const buscarPlantas = async (nome = "") => {
 
   return (
     <View style={styles.container}>
+
       <Text style={styles.title}>
         Pesquisar plantas
       </Text>
 
+      {/* CAMPO DE PESQUISA */}
       <View style={styles.searchContainer}>
+
         <TextInput
           placeholder="Pesquisar plantas..."
           placeholderTextColor="#666"
           style={styles.input}
           value={pesquisa}
           onChangeText={setPesquisa}
+          autoCapitalize="none"
+          autoCorrect={false}
         />
 
         <Ionicons
@@ -99,38 +129,57 @@ const buscarPlantas = async (nome = "") => {
           color="#000000"
           style={styles.icon}
         />
+
       </View>
 
+      {/* CARREGANDO */}
       {carregando ? (
+
         <ActivityIndicator
           size="large"
           color="#4A5D23"
           style={styles.loading}
         />
+
       ) : erro ? (
+
+        /* ERRO */
         <Text style={styles.message}>
           {erro}
         </Text>
+
       ) : plantas.length === 0 ? (
+
+        /* NENHUM RESULTADO */
         <Text style={styles.message}>
-          Nenhuma planta encontrada.
+          {pesquisa.trim() !== ""
+            ? "Nenhuma planta encontrada."
+            : "Nenhuma planta cadastrada."}
         </Text>
+
       ) : (
+
+        /* RESULTADOS */
         <FlatList
           data={plantas}
-          keyExtractor={(item) =>
-            item.id_plantas.toString()
+          keyExtractor={(item, index) =>
+            item.id_plantas
+              ? item.id_plantas.toString()
+              : index.toString()
           }
           renderItem={renderPlanta}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
         />
+
       )}
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
     padding: 20,
@@ -217,4 +266,5 @@ const styles = StyleSheet.create({
     color: "#666",
     marginTop: 5,
   },
+
 });
